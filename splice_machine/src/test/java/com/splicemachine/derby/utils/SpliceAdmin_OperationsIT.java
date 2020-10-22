@@ -495,4 +495,20 @@ public class SpliceAdmin_OperationsIT extends SpliceUnitTest{
         }
     }
 
+    @Test
+    public void testListDirectory() throws Exception {
+        String path = getResourceDirectory() + "/parquet_sample_one";
+
+        try (ResultSet rs = methodWatcher.executeQuery("CALL SYSCS_UTIL.LIST_DIRECTORY('" + path + "')") ) {
+            StringBuilder sb = new StringBuilder();
+            while( rs.next() ) {
+                sb.append(rs.getString(3) + " " + rs.getString(4) + " " + rs.getString(6) + "\n");
+            }
+            Assert.assertEquals(
+                    "Wed Apr 01 17:35:23 CEST 2020 0b _SUCCESS\n" +
+                            "Wed Apr 01 17:35:23 CEST 2020 96b partition1=AAA\n" +
+                            "Wed Apr 01 17:35:23 CEST 2020 96b partition1=BBB\n" +
+                            "Wed Apr 01 17:35:23 CEST 2020 96b partition1=CCC\n", sb.toString());
+        }
+    }
 }

@@ -52,7 +52,6 @@ import com.splicemachine.db.impl.sql.execute.ValueRow;
 import com.splicemachine.ddl.DDLMessage;
 import com.splicemachine.derby.ddl.DDLUtils;
 import com.splicemachine.derby.iapi.sql.execute.RunningOperation;
-import com.splicemachine.derby.impl.sql.catalog.upgrade.UpgradeManager;
 import com.splicemachine.derby.impl.store.access.SpliceTransactionManager;
 import com.splicemachine.derby.stream.ActivationHolder;
 import com.splicemachine.hbase.JMXThreadPool;
@@ -60,7 +59,6 @@ import com.splicemachine.hbase.jmx.JMXUtils;
 import com.splicemachine.pipeline.ErrorState;
 import com.splicemachine.pipeline.Exceptions;
 import com.splicemachine.pipeline.SimpleActivation;
-import com.splicemachine.procedures.ProcedureUtils;
 import com.splicemachine.protobuf.ProtoUtil;
 import com.splicemachine.si.api.data.TxnOperationFactory;
 import com.splicemachine.si.api.txn.TxnView;
@@ -73,6 +71,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.SerializationUtils;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import splice.com.google.common.collect.Lists;
@@ -81,6 +80,7 @@ import splice.com.google.common.net.HostAndPort;
 import javax.management.MalformedObjectNameException;
 import javax.management.remote.JMXConnector;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.security.SecureRandom;
 import java.sql.*;
 import java.text.SimpleDateFormat;
@@ -1874,6 +1874,48 @@ public class SpliceAdmin extends BaseAdminProcedures{
             }
         }
         return rows;
+    }
+
+    public static void LIST_DIRECTORY(String location, final ResultSet[] resultSet) throws SQLException, IOException, URISyntaxException {
+        DistributedFileSystem  fs = null;
+        try {
+            fs = SIDriver.driver().getFileSystem(location);
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("err");
+        }
+
+        ResultHelper resultHelper = new ResultHelper();
+
+        ResultHelper.VarcharColumn ownerCol   = resultHelper.addVarchar("OWNER", 10);
+        ResultHelper.VarcharColumn groupCol   = resultHelper.addVarchar("GROUP", 10);
+        ResultHelper.VarcharColumn modtimeCol = resultHelper.addVarchar("MODTIME", 30);
+        ResultHelper.BigintColumn  sizeCol    = resultHelper.addBigint("SIZE", 10);
+        ResultHelper.VarcharColumn permCol    = resultHelper.addVarchar("PERM", 12);
+        ResultHelper.VarcharColumn pathCol    = resultHelper.addVarchar("PATH", 80);
+
+        List<ExecRow> rows = new ArrayList<>();
+        try {
+            FileInfo fi1 = fs.getInfo(location);
+
+            FileInfo files[] = fi1.listDir();
+            Arrays.sort(files, (a, b) -> a.fileName().compareTo(b.fileName()) );
+            for (FileInfo fi : files )
+            {
+                FileStatus file;
+                resultHelper.newRow();
+                pathCol.set(fi.fileName());
+                ownerCol.set(fi.getUser());
+                groupCol.set(fi.getGroup());
+                modtimeCol.set(fi.getModificationTime() == 0 ? "-" : new Date(fi.getModificationTime()).toString());
+                sizeCol.set(fi.size());
+                permCol.set((fi.isDirectory() ? "d" : "-") + fi.getPermissionStr());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("err");
+        }
+        resultSet[0] = resultHelper.getResultSet();
     }
 
     public static void SYSCS_GET_RUNNING_OPERATIONS_LOCAL(final ResultSet[] resultSet) throws SQLException{
