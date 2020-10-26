@@ -146,6 +146,7 @@ public class FromBaseTable extends FromTable {
      * on the table scan for this FromBaseTable.
      */
     boolean multiProbing=false;
+    int numUnusedLeadingIndexFields = 0;
 
     private double singleScanRowCount;
 
@@ -1745,6 +1746,7 @@ public class FromBaseTable extends FromTable {
             if(pred.isInListProbePredicate() && pred.isStartKey()){
                 disableBulkFetch();
                 multiProbing=true;
+                numUnusedLeadingIndexFields = pred.getNumUnusedLeadingIndexFields();
                 break;
             }
         }
@@ -2270,7 +2272,9 @@ public class FromBaseTable extends FromTable {
         mb.push(printExplainInformationForActivation());
         generatePastTxFunc(acb, mb);
         mb.push(minRetentionPeriod);
-        mb.callMethod(VMOpcode.INVOKEINTERFACE,null,"getLastIndexKeyResultSet", ClassName.NoPutResultSet,17);
+        mb.push(numUnusedLeadingIndexFields);
+        mb.callMethod(VMOpcode.INVOKEINTERFACE,null,"getLastIndexKeyResultSet", ClassName.NoPutResultSet,18);
+
     }
 
     private void generateDistinctScan ( ExpressionClassBuilder acb, MethodBuilder mb ) throws StandardException{
@@ -2351,8 +2355,9 @@ public class FromBaseTable extends FromTable {
         generateDefaultRow((ActivationClassBuilder)acb, mb);
         generatePastTxFunc(acb, mb);
         mb.push(minRetentionPeriod);
+        mb.push(numUnusedLeadingIndexFields);
         mb.callMethod(VMOpcode.INVOKEINTERFACE,null,"getDistinctScanResultSet",
-                ClassName.NoPutResultSet,30);
+                ClassName.NoPutResultSet,31);
     }
 
     private void generatePastTxFunc(ExpressionClassBuilder acb, MethodBuilder mb) throws StandardException {
@@ -2466,6 +2471,9 @@ public class FromBaseTable extends FromTable {
         numArgs++;
 
         mb.push(minRetentionPeriod);
+        numArgs++;
+
+        mb.push(numUnusedLeadingIndexFields);
         numArgs++;
 
         return numArgs;

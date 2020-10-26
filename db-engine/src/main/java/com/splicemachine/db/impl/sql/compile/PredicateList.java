@@ -959,7 +959,9 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
         boolean inlistQualified = false;
 
         ArrayList<Predicate> inListNonQualifiedPreds = new ArrayList<>();
-        
+
+        boolean firstColumnMissing = false;
+        int firstColumnIdx = 0;
         if (inlistPosition >= 0) {
 
             inlistQualified = true;
@@ -977,16 +979,25 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
             }
             boolean unsetRemainder = false;
             for (int pos = 0; pos <= inlistPosition; pos++) {
+                if (firstColumnMissing && usefulPredicates[pos-firstColumnIdx] != null)
+                    usefulPredicates[pos-firstColumnIdx].setNumUnusedLeadingIndexFields(firstColumnIdx);
                 if (unsetRemainder)
                     isEquality[pos] = false;
         
-                if (!isEquality[pos])
-                    unsetRemainder = true;
+                if (!isEquality[pos]) {
+                    if (pos == 0) {
+                        firstColumnMissing = true;
+                        firstColumnIdx++;
+                    }
+                    else
+                        unsetRemainder = true;
+                }
             }
             TreeMap<Integer, Predicate> inlistPredsCopy = (TreeMap < Integer, Predicate>)inlistPreds.clone();
             for (Map.Entry<Integer, Predicate> p : inlistPredsCopy.entrySet()) {
                 if (isEquality[p.getKey()]) {
                     p.getValue().setIndexPosition(p.getKey());
+                    p.getValue().setNumUnusedLeadingIndexFields(firstColumnIdx);
                     inlistQualified = true;
                     /* Remember the useful predicate */
                     usefulPredicates[usefulCount++] = p.getValue();
@@ -1119,6 +1130,7 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
                     // The index position is the position of the first column in the
                     // multicolumn IN list.
                     newPred.setIndexPosition(usefulPredicates[firstPred].getIndexPosition());
+                    newPred.setNumUnusedLeadingIndexFields(firstColumnIdx);
                     usefulPredicates[firstPred] = newPred;
                     multiColumnInListPred = newPred;
 
@@ -1233,7 +1245,8 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
     
         int numColsInStartPred = 1;
         int numColsInStopPred = 1;
-        
+
+        currentStartPosition += firstColumnIdx;
         for(int i=0;i<usefulCount;i++){
             Predicate thisPred=usefulPredicates[i];
             int thisIndexPosition=thisPred.getIndexPosition();
@@ -3076,11 +3089,13 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
             int countedStopPreds = 0;
             int size = size();
             int numberOfColumns = 0;
+            int numUnusedLeadingIndexFields = 0;
             for (int index = 0; index < size; index++) {
                 Predicate pred = elementAt(index);
                 if (!pred.isStopKey())
                     continue;
                 countedStopPreds++;
+                numUnusedLeadingIndexFields = pred.getNumUnusedLeadingIndexFields();
                 if (pred.isInListProbePredicate()) {
                     InListOperatorNode ilop = pred.getSourceInList(true);
                     if (ilop == null)
@@ -3091,7 +3106,8 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
                     numberOfColumns++;
             }
             assert countedStopPreds == numberOfStopPredicates : "Number of stop predicates does not match";
-    
+            numberOfColumns += numUnusedLeadingIndexFields;
+
             /* This sets up the method and the static field */
             MethodBuilder exprFun=acb.newExprFun();
 
@@ -3124,7 +3140,7 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
                     pred.setAndNode(origAndNode);
             }
 
-            assert colNum==numberOfColumns: "Number of stop predicates does not match";
+            assert colNum + numUnusedLeadingIndexFields == numberOfColumns: "Number of stop predicates does not match";
 
             finishKey(acb,mb,exprFun,rowField);
             return;
@@ -3809,12 +3825,14 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
             
             int size = size();
             int numberOfColumns = 0;
+            int numUnusedLeadingIndexFields = 0;
             for (int index = 0; index < size; index++) {
                 Predicate pred = elementAt(index);
     
                 if (!pred.isStartKey())
                     continue;
-    
+
+                numUnusedLeadingIndexFields = pred.getNumUnusedLeadingIndexFields();
                 countedStartPreds++;
                 if (pred.isInListProbePredicate()) {
                     InListOperatorNode ilop = pred.getSourceInList(true);
@@ -3827,7 +3845,8 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
                     numberOfColumns++;
             }
             assert countedStartPreds == numberOfStartPredicates : "Number of start predicates does not match";
-            
+            numberOfColumns += numUnusedLeadingIndexFields;
+
             /* Now we fill in the body of the method */
             LocalField rowField=generateIndexableRow(acb, numberOfColumns);
 
@@ -3857,7 +3876,7 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
                     pred.setAndNode(origAndNode);
             }
 
-            assert colNum== numberOfColumns: "Number of start predicates does not match";
+            assert colNum + numUnusedLeadingIndexFields == numberOfColumns: "Number of start predicates does not match";
 
             finishKey(acb,mb,exprFun,rowField);
             return;
@@ -4031,7 +4050,7 @@ public class PredicateList extends QueryTreeNodeVector<Predicate> implements Opt
                                    LocalField rowField,
                                    boolean isStartKey) throws StandardException{
         MethodBuilder mb;
-
+        columnNumber += pred.getNumUnusedLeadingIndexFields();
             /* Code gets generated in constructor if comparison against
              * a constant, otherwise gets generated in the current
              * statement block.

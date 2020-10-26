@@ -64,6 +64,7 @@ public final class Predicate extends QueryTreeNode implements OptimizablePredica
     int equivalenceClass=-1;
     // indexPosition of -1 is used by rowId, so use -2 to indicate that it has been set
     int indexPosition=-2;
+    int numUnusedLeadingIndexFields = 0;
     protected boolean startKey;
     protected boolean stopKey;
     protected boolean rowId;
@@ -274,6 +275,10 @@ public final class Predicate extends QueryTreeNode implements OptimizablePredica
     @Override
     public int getIndexPosition(){
         return indexPosition;
+    }
+
+    @Override public int getNumUnusedLeadingIndexFields() {
+        return numUnusedLeadingIndexFields;
     }
 
 
@@ -612,6 +617,10 @@ public final class Predicate extends QueryTreeNode implements OptimizablePredica
         this.indexPosition=indexPosition;
     }
 
+    void setNumUnusedLeadingIndexFields (int newValue) {
+        numUnusedLeadingIndexFields = newValue;
+    }
+
     /**
      * Clear the start/stop position and qualifier flags
      */
@@ -622,6 +631,7 @@ public final class Predicate extends QueryTreeNode implements OptimizablePredica
         // indexPosition of -1 is used by rowId, so use -2 to indicate that it has been set
         indexPosition = -2;
         matchIndexExpression = false;
+        numUnusedLeadingIndexFields = 0;
     }
 
     void generateExpressionOperand(Optimizable optTable,
@@ -735,6 +745,7 @@ public final class Predicate extends QueryTreeNode implements OptimizablePredica
 
         this.equivalenceClass=otherPred.getEquivalenceClass();
         this.indexPosition=otherPred.getIndexPosition();
+        this.numUnusedLeadingIndexFields=otherPred.getNumUnusedLeadingIndexFields();
         this.startKey=otherPred.isStartKey();
         this.stopKey=otherPred.isStopKey();
         this.isQualifier=otherPred.isQualifier();

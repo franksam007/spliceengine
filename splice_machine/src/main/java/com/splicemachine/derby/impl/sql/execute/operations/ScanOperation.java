@@ -105,7 +105,8 @@ public abstract class ScanOperation extends SpliceBaseOperation {
                          double optimizerEstimatedCost,String tableVersion,
                          boolean pin, int splits, String delimited, String escaped, String lines,
                          String storedAs, String location, int partitionRefItem, GeneratedMethod defaultRowFunc,
-                         int defaultValueMapItem, GeneratedMethod pastTxFunctor, long minRetentionPeriod
+                         int defaultValueMapItem, GeneratedMethod pastTxFunctor, long minRetentionPeriod,
+                         int numUnusedLeadingIndexFields
     ) throws StandardException{
         super(activation,resultSetNumber,optimizerEstimatedRowCount,optimizerEstimatedCost);
         this.lockMode=lockMode;
@@ -135,7 +136,8 @@ public abstract class ScanOperation extends SpliceBaseOperation {
                 rowIdKey,
                 tableVersion,
                 defaultRowFunc!=null?defaultRowFunc.getMethodName():null,
-                defaultValueMapItem
+                defaultValueMapItem,
+                numUnusedLeadingIndexFields
         );
         if(pastTxFunctor != null) {
             this.pastTx = mapToTxId((DataValueDescriptor)pastTxFunctor.invoke(activation), minRetentionPeriod);
