@@ -6325,6 +6325,7 @@ public abstract class DataDictionaryImpl extends BaseDataDictionary{
             for(int f=0;f<DataDictionaryImpl.SYSFUN_FUNCTIONS.length;f++){
                 String[] details=DataDictionaryImpl.SYSFUN_FUNCTIONS[f];
                 String name=details[0];
+                // add levenshtein
                 if(!name.equals(routineName))
                     continue;
 

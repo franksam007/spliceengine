@@ -403,6 +403,29 @@ public class RoutineAliasInfo extends MethodAliasInfo
 	 */
 	public	int	getTypeFormatId()	{ return StoredFormatIds.ROUTINE_INFO_V01_ID; }
 
+	public void toStringParameters(StringBuilder sb)
+	{
+		sb.append(getMethodName());
+		sb.append('(');
+		for (int i = 0; i < parameterCount; i++) {
+			if (i != 0)
+				sb.append(',');
+
+			if (returnType == null) {
+				// This is a PROCEDURE.  We only want to print the
+				// parameter mode (ex. "IN", "OUT", "INOUT") for procedures--
+				// we don't do it for functions since use of the "IN" keyword
+				// is not part of the FUNCTION syntax.
+				sb.append(RoutineAliasInfo.parameterMode(parameterModes[i]));
+				sb.append(' ');
+			}
+			sb.append(IdUtil.normalToDelimited(parameterNames[i]));
+			sb.append(' ');
+			sb.append(parameterTypes[i].getSQLstring());
+		}
+		sb.append(')');
+	}
+
 	/**
 	 * Get this alias info as a string.  NOTE: The "ALIASINFO" column
 	 * in the SYSALIASES table will return the result of this method
@@ -413,8 +436,9 @@ public class RoutineAliasInfo extends MethodAliasInfo
 	 * will be incorrect.
 	 */
 	public String toString() {
-
 		StringBuilder sb = new StringBuilder(100);
+		toStringParameters(sb);
+
 		sb.append(getMethodName());
 		sb.append('(');
 		for (int i = 0; i < parameterCount; i++) {
