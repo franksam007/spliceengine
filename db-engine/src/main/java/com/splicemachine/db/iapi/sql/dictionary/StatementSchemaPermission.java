@@ -92,7 +92,9 @@ public class StatementSchemaPermission extends StatementPermission
         DataDictionary dd =    lcc.getDataDictionary();
         TransactionController tc = lcc.getTransactionExecute();
         String currentUserId = lcc.getCurrentUserId(activation);
-        List<String> currentGroupuserlist = lcc.getCurrentGroupUser(activation);
+        List<String> currentGroupUserList = lcc.getCurrentGroupUser(activation);
+        String dbOwner = lcc.getCurrentDatabase().getAuthorizationId();
+        boolean isOwner = currentUserId.equals(dbOwner) || (currentGroupUserList != null && currentGroupUserList.contains(dbOwner));
 
         SchemaDescriptor sd;
         switch ( privType )
@@ -103,9 +105,13 @@ public class StatementSchemaPermission extends StatementPermission
                 if (sd == null)
                     return;
 
-                // if current user is owner, it can access the schema // XXX (arnaud multidb) check current user of correct DB?
+                if (sd.getDatabaseId() == lcc.getCurrentDatabase().getUUID() && isOwner) {
+                    return;
+                }
+
+                // if current user is owner, it can access the schema
                 if (currentUserId.equals(sd.getAuthorizationId()) ||
-                        currentGroupuserlist != null && currentGroupuserlist.contains(sd.getAuthorizationId()))
+                        currentGroupUserList != null && currentGroupUserList.contains(sd.getAuthorizationId()))
                     return;
 
                 if (!hasPermissionOnSchema(lcc, dd, activation, forGrant))
@@ -118,9 +124,13 @@ public class StatementSchemaPermission extends StatementPermission
                 if (sd == null)
                     return;
 
+                if (sd.getDatabaseId() == lcc.getCurrentDatabase().getUUID() && isOwner) {
+                    return;
+                }
+
                 // if current user is owner, it can modify the schema
                 if (currentUserId.equals(sd.getAuthorizationId()) ||
-                        currentGroupuserlist != null && currentGroupuserlist.contains(sd.getAuthorizationId()))
+                        currentGroupUserList != null && currentGroupUserList.contains(sd.getAuthorizationId()))
                     return;
 
                 schemaUUID = sd.getUUID();
@@ -139,6 +149,10 @@ public class StatementSchemaPermission extends StatementPermission
                 if (sd == null)
                     return;
 
+                if (sd.getDatabaseId() == lcc.getCurrentDatabase().getUUID() && isOwner) {
+                    return;
+                }
+
                 if (!currentUserId.equals(sd.getAuthorizationId()))
                     throw StandardException.newException(
                         SQLState.AUTH_NO_ACCESS_NOT_OWNER,
@@ -147,6 +161,9 @@ public class StatementSchemaPermission extends StatementPermission
                 break;
 
             case Authorizer.CREATE_SCHEMA_PRIV:
+                if (isOwner) {
+                    return;
+                }
                 // Non-DBA Users can only create schemas that match their
                 // currentUserId Also allow only DBA to set currentUserId to
                 // another user Note that for DBA, check interface wouldn't be
