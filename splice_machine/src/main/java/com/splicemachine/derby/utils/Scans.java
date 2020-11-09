@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.splicemachine.EngineDriver.isMemPlatform;
+import static com.splicemachine.db.iapi.store.access.ScanController.GT;
 import static com.splicemachine.db.shared.common.reference.SQLState.PARAMETER_CANNOT_BE_NULL;
 
 /**
@@ -376,7 +377,7 @@ public class Scans extends SpliceUtils {
                 startStopKeys =
                   buildStartAndStopKeys(startKeyDVDs, ScanController.GE,
                                         stopKeyDVDs, null,
-                                        ScanController.GT,
+                                        GT,
                                         sortOrder,
                                         scannedRow, //template row
                                         keyTablePositionMap, //the location in the ENTIRE row of the key columns
@@ -440,6 +441,13 @@ public class Scans extends SpliceUtils {
             DataValueDescriptor[] stop = stopKeyValue;
             if (stop == null)
                 stop = stopKeyPrefix;
+            if (stop == null && scanKeyPrefix != null) {
+                // The value will be filled in in
+                // the subsequent if statement block.
+                stop = new DataValueDescriptor[1];
+                // Make sure we don't include the stop key.
+                stopSearchOperator = GT;
+            }
             if (stop != null) {
                 generateStopKey = true;
                 if (scanKeyPrefix != null)

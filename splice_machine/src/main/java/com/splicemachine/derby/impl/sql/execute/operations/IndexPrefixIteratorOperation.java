@@ -192,23 +192,23 @@ public class IndexPrefixIteratorOperation extends TableScanOperation{
         DataSet<ExecRow> ds = getDriverDataSet(createTableScannerBuilder(dsp));
         DataSet<ExecRow> finalDS = ds.mapPartitions(new IndexPrefixIteratorFunction(operationContext), true);
 
-//        return finalDS;
+        return finalDS;
 
-        if (dsp instanceof ControlDataSetProcessor) {
-            Iterator<ExecRow> rowIterator = ds.toLocalIterator();
-            ExecRow row = null;
-            while (rowIterator.hasNext()) {
-                row = rowIterator.next().getClone();
-            }
-            ((BaseActivation)sourceResultSet.getActivation()).setScanKeyPrefix(row.getColumn(firstIndexColumnNumber));
-            return sourceResultSet.getDataSet(dsp);
-        }
-        if (ds.isNativeSpark())
-            dsp.incrementOpDepth();
-        dsp.prependSpliceExplainString(this.explainPlan);
-        if (ds.isNativeSpark())
-            dsp.decrementOpDepth();
-        return ds;
+//        if (dsp instanceof ControlDataSetProcessor) {
+//            Iterator<ExecRow> rowIterator = ds.toLocalIterator();
+//            ExecRow row = null;
+//            while (rowIterator.hasNext()) {
+//                row = rowIterator.next().getClone();
+//            }
+//            ((BaseActivation)sourceResultSet.getActivation()).setScanKeyPrefix(row.getColumn(firstIndexColumnNumber));
+//            return sourceResultSet.getDataSet(dsp);
+//        }
+//        if (ds.isNativeSpark())
+//            dsp.incrementOpDepth();
+//        dsp.prependSpliceExplainString(this.explainPlan);
+//        if (ds.isNativeSpark())
+//            dsp.decrementOpDepth();
+//        return ds;
     }
 
     /**
@@ -277,5 +277,13 @@ public class IndexPrefixIteratorOperation extends TableScanOperation{
         return tableScannerBuilder
                 .buildDataSet(this)
                 .map(new SetCurrentLocatedRowAndRowKeyFunction<>(operationContext));
+    }
+
+    public SpliceOperation getSourceResultSet() {
+        return sourceResultSet;
+    }
+
+    public int getFirstIndexColumnNumber() {
+        return firstIndexColumnNumber;
     }
 }

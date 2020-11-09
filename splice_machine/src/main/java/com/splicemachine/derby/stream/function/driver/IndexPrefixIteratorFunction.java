@@ -57,6 +57,8 @@ public class IndexPrefixIteratorFunction extends SpliceFlatMapFunction<SpliceOpe
     private ExecRow currentRow;
     private ScanSetBuilder scanSetBuilder;
     private DataSetProcessor dsp;
+    private SpliceOperation sourceResultSet = null;
+    private int firstIndexColumnNumber;
 
     public IndexPrefixIteratorFunction() {
         super();
@@ -145,6 +147,12 @@ public class IndexPrefixIteratorFunction extends SpliceFlatMapFunction<SpliceOpe
 //            if (bufferHasNextRow())
 //                retval = bufferedRowList.get(bufferPosition++);
             currentRow = sourceIterator.next().getClone();
+            try {
+                ((BaseActivation) sourceResultSet.getActivation()).setScanKeyPrefix(currentRow.getColumn(firstIndexColumnNumber));
+            }
+            catch (StandardException e) {
+                throw new RuntimeException(StandardException.newException(LANG_INTERNAL_ERROR, "Error setting scanKeyPrefix in IndexPrefixIteratorFunction."));
+            }
             return currentRow;
         }
     }
@@ -219,6 +227,8 @@ public class IndexPrefixIteratorFunction extends SpliceFlatMapFunction<SpliceOpe
 
                 leftPeekingIterator = Iterators.peekingIterator(locatedRows);
                 driverOperation = (IndexPrefixIteratorOperation) getOperation();
+                sourceResultSet = driverOperation.getSourceResultSet();
+                firstIndexColumnNumber = driverOperation.getFirstIndexColumnNumber();
                 dsp = EngineDriver.driver().processorFactory().localProcessor(driverOperation.getActivation(), driverOperation);
                 initialized = true;
                 if (!leftPeekingIterator.hasNext())
