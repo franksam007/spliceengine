@@ -148,10 +148,12 @@ public class IndexPrefixIteratorFunction extends SpliceFlatMapFunction<SpliceOpe
 //                retval = bufferedRowList.get(bufferPosition++);
             currentRow = sourceIterator.next().getClone();
             try {
-                ((BaseActivation) sourceResultSet.getActivation()).setScanKeyPrefix(currentRow.getColumn(firstIndexColumnNumber));
+                ((BaseActivation) sourceResultSet.getActivation()).
+                 setScanKeyPrefix(currentRow.getColumn(firstIndexColumnNumber));
             }
             catch (StandardException e) {
-                throw new RuntimeException(StandardException.newException(LANG_INTERNAL_ERROR, "Error setting scanKeyPrefix in IndexPrefixIteratorFunction."));
+                throw new RuntimeException(StandardException.newException(LANG_INTERNAL_ERROR,
+                           "Error setting scanKeyPrefix in IndexPrefixIteratorFunction."));
             }
             return currentRow;
         }
@@ -225,7 +227,7 @@ public class IndexPrefixIteratorFunction extends SpliceFlatMapFunction<SpliceOpe
         if (leftPeekingIterator == null) {
                 leftPeekingIterator = new BufferedIterator(locatedRows);
 
-                leftPeekingIterator = Iterators.peekingIterator(locatedRows);
+                // leftPeekingIterator = Iterators.peekingIterator(locatedRows);  // msirek-temp
                 driverOperation = (IndexPrefixIteratorOperation) getOperation();
                 sourceResultSet = driverOperation.getSourceResultSet();
                 firstIndexColumnNumber = driverOperation.getFirstIndexColumnNumber();
