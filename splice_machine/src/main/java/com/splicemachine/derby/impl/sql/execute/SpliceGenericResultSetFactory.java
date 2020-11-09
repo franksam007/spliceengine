@@ -583,6 +583,106 @@ public class SpliceGenericResultSetFactory implements ResultSetFactory {
     }
 
     @Override
+    public NoPutResultSet getIndexPrefixIteratorResultSet(
+                                                NoPutResultSet sourceResultSet,
+                                                int firstIndexColumnNumber,
+                                                Activation activation,
+                                                long conglomId,
+                                                int scociItem,
+                                                GeneratedMethod resultRowAllocator,
+                                                int resultSetNumber,
+                                                GeneratedMethod startKeyGetter,
+                                                int startSearchOperator,
+                                                GeneratedMethod stopKeyGetter,
+                                                int stopSearchOperator,
+                                                boolean sameStartStopPosition,
+                                                boolean rowIdKey,
+                                                String qualifiersField,
+                                                String tableName,
+                                                String userSuppliedOptimizerOverrides,
+                                                String indexName,
+                                                boolean isConstraint,
+                                                boolean forUpdate,
+                                                int colRefItem,
+                                                int indexColItem,
+                                                int lockMode,
+                                                boolean tableLocked,
+                                                int isolationLevel,
+                                                boolean oneRowScan,
+                                                double optimizerEstimatedRowCount,
+                                                double optimizerEstimatedCost,
+                                                String tableVersion,
+                                                String explainPlan,
+                                                boolean pin,
+                                                int splits,
+                                                String delimited,
+                                                String escaped,
+                                                String lines,
+                                                String storedAs,
+                                                String location,
+                                                int partitionByRefItem,
+                                                GeneratedMethod defaultRowFunc,
+                                                int defaultValueMapItem,
+                                                GeneratedMethod pastTxFunctor,
+                                                long minRetentionPeriod,
+                                                int numUnusedLeadingIndexFields )
+            throws StandardException {
+        SpliceLogUtils.trace(LOG, "getIndexPrefixIteratorResultSet");
+        try{
+            StaticCompiledOpenConglomInfo scoci = (StaticCompiledOpenConglomInfo)(activation.getPreparedStatement().
+                    getSavedObject(scociItem));
+            ConvertedResultSet source = (ConvertedResultSet)sourceResultSet;
+            IndexPrefixIteratorOperation op = new IndexPrefixIteratorOperation(
+                    source.getOperation(),
+                    firstIndexColumnNumber,
+                    conglomId,
+                    scoci,
+                    activation,
+                    resultRowAllocator,
+                    resultSetNumber,
+                    startKeyGetter,
+                    startSearchOperator,
+                    stopKeyGetter,
+                    stopSearchOperator,
+                    sameStartStopPosition,
+                    rowIdKey,
+                    qualifiersField,
+                    tableName,
+                    userSuppliedOptimizerOverrides,
+                    indexName,
+                    isConstraint,
+                    forUpdate,
+                    colRefItem,
+                    indexColItem,
+                    lockMode,
+                    tableLocked,
+                    isolationLevel,
+                    1,	// rowsPerRead is 1 if not a bulkTableScan
+                    oneRowScan,
+                    optimizerEstimatedRowCount,
+                    optimizerEstimatedCost,
+                    tableVersion,
+                    pin,
+                    splits,
+                    delimited,
+                    escaped,
+                    lines,
+                    storedAs,
+                    location,
+                    partitionByRefItem,
+                    defaultRowFunc,
+                    defaultValueMapItem,
+                    pastTxFunctor,
+                    minRetentionPeriod,
+                    numUnusedLeadingIndexFields);
+            op.setExplainPlan(explainPlan);
+            return op;
+        }catch(Exception e){
+            throw Exceptions.parseException(e);
+        }
+    }
+
+    @Override
     public NoPutResultSet getHashLeftOuterJoinResultSet(
             NoPutResultSet leftResultSet,
             int leftNumCols,

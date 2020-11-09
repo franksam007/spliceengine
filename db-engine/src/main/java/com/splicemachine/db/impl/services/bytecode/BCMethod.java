@@ -446,7 +446,7 @@ class BCMethod implements MethodBuilder {
 
 	private Type popStack() {
 		stackTypeOffset--;
-		Type topType = stackTypes[stackTypeOffset];
+ 		Type topType = stackTypes[stackTypeOffset];
 		stackDepth -= topType.width();
 		return topType;
 

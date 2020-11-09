@@ -1034,6 +1034,52 @@ public interface ResultSetFactory {
 								)
 			throws StandardException;
 
+	NoPutResultSet getIndexPrefixIteratorResultSet(
+	                            NoPutResultSet sourceResultSet,
+			                    int firstIndexColumnNumber,
+			                    Activation activation,
+								long conglomId,
+								int scociItem,
+								GeneratedMethod resultRowAllocator,
+								int resultSetNumber,
+								GeneratedMethod startKeyGetter,
+								int startSearchOperator,
+								GeneratedMethod stopKeyGetter,
+								int stopSearchOperator,
+								boolean sameStartStopPosition,
+                                boolean rowIdKey,
+								String qualifiersField,
+								String tableName,
+								String userSuppliedOptimizerOverrides,
+								String indexName,
+								boolean isConstraint,
+								boolean forUpdate,
+								int colRefItem,
+								int indexColItem,
+								int lockMode,
+								boolean tableLocked,
+								int isolationLevel,
+								boolean oneRowScan,
+								double optimizerEstimatedRowCount,
+								double optimizerEstimatedCost,
+                                String tableVersion,
+                                String explainPlan,
+								boolean pin,
+								int splits,
+								String delimited,
+								String escaped,
+								String lines,
+								String storedAs,
+								String location,
+								int partitionByRefItem,
+								GeneratedMethod defaultRowFunc,
+								int defaultValueMapItem,
+								GeneratedMethod pastTxFunctor,
+                                long minRetentionPeriod,
+                                int numUnusedLeadingIndexFields
+								)
+			throws StandardException;
+
 	NoPutResultSet getTableScanResultSet(
 			                    Activation activation,
 								long conglomId,

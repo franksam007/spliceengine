@@ -344,18 +344,14 @@ public class DerbyScanInformation implements ScanInformation<ExecRow>, Externali
                 keyRows);
     }
 
-    public List<Pair<byte[],byte[]>> getStartStopKeys(TxnView txn, ExecRow startKeyOverride, int[] keyDecodingMap, DataValueDescriptor[] probeValues) throws StandardException {
-        boolean sameStartStop = startKeyOverride == null && sameStartStopPosition;
+    public List<Pair<byte[],byte[]>> getStartStopKeys(TxnView txn, DataValueDescriptor scanKeyPrefix, int[] keyDecodingMap, DataValueDescriptor[] probeValues) throws StandardException {
+        final boolean sameStartStop = true;
         ExecRow startPosition;
         ExecRow stopPosition;
         ExecRow overriddenStartPos;
 
         if (sameStartStop) {
             startSearchOperator = ScanController.NA;
-        }
-
-        if (startKeyOverride != null) {
-            startSearchOperator = ScanController.GE;
         }
 
         DataValueDescriptor[] startKeyValues;
@@ -370,7 +366,7 @@ public class DerbyScanInformation implements ScanInformation<ExecRow>, Externali
             setProbeValue(probeValue);
             startPosition = getStartPosition();
             stopPosition = sameStartStop ? startPosition : getStopPosition();
-            overriddenStartPos = startKeyOverride != null ? startKeyOverride : startPosition;
+            overriddenStartPos = startPosition;
 
             startKeyValues = overriddenStartPos == null ? null : overriddenStartPos.getClone().getRowArray();
             stopKeyValues = stopPosition == null ? null : stopPosition.getClone().getRowArray();
@@ -389,7 +385,8 @@ public class DerbyScanInformation implements ScanInformation<ExecRow>, Externali
                     activation.getDataValueFactory(),
                     tableVersion,
                     rowIdKey,
-                    getResultRow());
+                    getResultRow(),
+                    scanKeyPrefix);
             startStopKeys.add(startStopKey);
         }
         return startStopKeys;

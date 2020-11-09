@@ -2111,6 +2111,56 @@ public class FromBaseTable extends FromTable {
         }
     }
 
+    private void generateIndexPrefixIteratorOperation(ExpressionClassBuilder acb,
+                                                      MethodBuilder mb) throws StandardException {
+        if (numUnusedLeadingIndexFields > 0) {
+            AccessPath ap=getTrulyTheBestAccessPath();
+            JoinStrategy savedJoinStrategy=ap.getJoinStrategy();
+            ap.setJoinStrategy(ap.getOptimizer().getJoinStrategy(JoinStrategy.JoinStrategyType.NESTED_LOOP.ordinal()));
+            boolean savedMultiProbing = multiProbing;
+            multiProbing = false;
+            mb.push(getTrulyTheBestAccessPath().getConglomerateDescriptor().getIndexDescriptor().baseColumnPositions()[0]);
+            int nargs=getScanArguments(acb, mb);
+            nargs+=2;  // +1 for the source result set and +1 for baseColumnPositions.
+
+            // IndexPrefixIteratorOperation is a
+            // high-level driver operation that finds existing
+            // index prefix values (first column of the index) and prepends
+            // those values, one-at-a-time, to the start key of an
+            // underlying operation.  The underlying operation is called
+            // once for each such value.  In this usage of "index" a primary key
+            // is also considered an index because it provides a
+            // start/stop key access path.
+            mb.callMethod(VMOpcode.INVOKEINTERFACE,null,
+                "getIndexPrefixIteratorResultSet",
+                ClassName.NoPutResultSet, nargs);
+            multiProbing = savedMultiProbing;
+            ap.setJoinStrategy(savedJoinStrategy);
+        }
+    }
+
+    private void addFirstIndexColumnsToResultColumns(int firstIndexCol)
+                                                     throws StandardException {
+        ColumnDescriptor colDesc = tableDescriptor.getColumnDescriptor(firstIndexCol);
+        ResultColumn origCol;
+        origCol=resultColumns.elementAt(0);
+
+        ValueNode valueNode=(ValueNode)getNodeFactory().getNode(
+                    C_NodeTypes.BASE_COLUMN_NODE,
+                    colDesc.getColumnName(),
+                    makeTableName(origCol.getSchemaName(),
+                            origCol.getTableName()),
+                    colDesc.getType(),
+                    getContextManager());
+        ResultColumn resultColumn=(ResultColumn)getNodeFactory().getNode(
+                    C_NodeTypes.RESULT_COLUMN,
+                    colDesc,
+                    valueNode,
+                    getContextManager());
+
+        resultColumns.addResultColumn(resultColumn);
+    }
+
     /**
      * Generation on a FromBaseTable for a SELECT. This logic was separated
      * out so that it could be shared with PREPARE SELECT FILTER.
@@ -2127,6 +2177,18 @@ public class FromBaseTable extends FromTable {
             SanityManager.ASSERT(
                     getTrulyTheBestAccessPath().getConglomerateDescriptor()!=null);
 
+        if (numUnusedLeadingIndexFields > 0) {
+            // Make sure the leading index column is marked as referenced.
+
+            int firstIndexCol = getTrulyTheBestAccessPath().getConglomerateDescriptor().
+                                getIndexDescriptor().baseColumnPositions()[0];
+            if (!referencedCols.isSet(firstIndexCol-1)) {
+                addFirstIndexColumnsToResultColumns(firstIndexCol);
+                referencedCols.set(firstIndexCol - 1);
+            }
+            acb.pushGetResultSetFactoryExpression(mb);
+        }
+
         /* Get the next ResultSet #, so that we can number this ResultSetNode, its
          * ResultColumnList and ResultSet.
          */
@@ -2138,6 +2200,7 @@ public class FromBaseTable extends FromTable {
         */
         if(specialMaxScan){
             generateMaxSpecialResultSet(acb,mb);
+            generateIndexPrefixIteratorOperation(acb, mb);
             return;
         }
 
@@ -2147,6 +2210,7 @@ public class FromBaseTable extends FromTable {
         */
         if(distinctScan){
             generateDistinctScan(acb,mb);
+            generateIndexPrefixIteratorOperation(acb, mb);
             return;
         }
 
@@ -2161,6 +2225,7 @@ public class FromBaseTable extends FromTable {
         mb.callMethod(VMOpcode.INVOKEINTERFACE,null,
                 trulyTheBestJoinStrategy.resultSetMethodName(multiProbing),
                 ClassName.NoPutResultSet,nargs);
+        generateIndexPrefixIteratorOperation(acb, mb);
 
         if (rowIdColumn != null) {
             String type = ClassName.CursorResultSet;
@@ -2374,7 +2439,8 @@ public class FromBaseTable extends FromTable {
         }
     }
 
-    private int getScanArguments(ExpressionClassBuilder acb, MethodBuilder mb) throws StandardException{
+    private int getScanArguments(ExpressionClassBuilder acb,
+                                 MethodBuilder mb) throws StandardException{
         // get a function to allocate scan rows of the right shape and size
         MethodBuilder resultRowAllocator= resultColumns.generateHolderMethod(acb, referencedCols, null);
 

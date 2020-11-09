@@ -14,6 +14,8 @@
 
 package com.splicemachine.storage;
 
+import com.splicemachine.access.client.ClientRegionConstants;
+import com.splicemachine.si.constants.SIConstants;
 import com.splicemachine.utils.Pair;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.Filter;
@@ -111,6 +113,7 @@ public class HScan implements DataScan {
                 Bytes.compareTo(currentStopRow, filterStopRow) > 0)
                 scan.withStopRow(filterStopRow);
         }
+        scan.setAttribute(ClientRegionConstants.SPLICE_SCAN_MEMSTORE_ONE_ROW_PER_LEADING_PK_COLUMN_VALUE, SIConstants.TRUE_BYTES);
     }
 
     @Override

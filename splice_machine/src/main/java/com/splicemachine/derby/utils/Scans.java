@@ -142,7 +142,8 @@ public class Scans extends SpliceUtils {
                                  DataValueFactory dataValueFactory,
                                  String tableVersion,
                                  boolean rowIdKey,
-                                 ExecRow templateRow) throws StandardException {
+                                 ExecRow templateRow,
+                                 DataValueDescriptor scanKeyPrefix) throws StandardException {
         assert dataValueFactory != null;
         try {
             if (rowIdKey) {
@@ -162,7 +163,7 @@ public class Scans extends SpliceUtils {
                               stopKeyValue, stopKeyPrefix, stopSearchOperator,
                               sortOrder, formatIds, keyTablePositionMap, keyDecodingMap,
                               dataValueFactory, tableVersion, rowIdKey,
-                              templateRow);
+                              templateRow, scanKeyPrefix);
 
 //            if (!rowIdKey) {
 //                buildPredicateFilter(qualifiers, scanColumnList, scan, keyDecodingMap);
@@ -406,7 +407,8 @@ public class Scans extends SpliceUtils {
                                                   DataValueFactory dataValueFactory,
                                                   String tableVersion,
                                                   boolean rowIdKey,
-                                                  ExecRow templateRow) throws IOException, StandardException {
+                                                  ExecRow templateRow,
+                                                  DataValueDescriptor scanKeyPrefix) throws IOException, StandardException {
         byte[] startRow;
         byte[] stopRow;
         try {
@@ -415,8 +417,11 @@ public class Scans extends SpliceUtils {
 
             if (startKeyValue != null) {
                 generateStartKey = true;
+                if (scanKeyPrefix != null)
+                    startKeyValue[0] = scanKeyPrefix;
                 for (int i = 0; i < startKeyValue.length; i++) {
-                    DataValueDescriptor startDesc = startKeyValue[i];
+                    DataValueDescriptor startDesc;
+                    startDesc = startKeyValue[i];
                     if (startDesc == null) {
                         generateStartKey = false; // if any null encountered, don't make a start key
                         break;
@@ -437,8 +442,11 @@ public class Scans extends SpliceUtils {
                 stop = stopKeyPrefix;
             if (stop != null) {
                 generateStopKey = true;
+                if (scanKeyPrefix != null)
+                    stop[0] = scanKeyPrefix;
                 for (int i = 0; i < stop.length; i++) {
-                    DataValueDescriptor stopDesc = stop[i];
+                    DataValueDescriptor stopDesc;
+                    stopDesc = stop[i];
                     if (stopDesc == null) {
                         generateStopKey = false; // if any null encountered, don't make a stop key
                         break;

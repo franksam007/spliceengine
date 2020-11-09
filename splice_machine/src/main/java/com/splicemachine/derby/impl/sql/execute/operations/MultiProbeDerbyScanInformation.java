@@ -26,6 +26,7 @@ import com.splicemachine.db.iapi.sql.execute.ExecRow;
 import com.splicemachine.db.iapi.store.access.Qualifier;
 import com.splicemachine.db.iapi.store.access.ScanController;
 import com.splicemachine.db.iapi.types.*;
+import com.splicemachine.db.impl.sql.execute.BaseActivation;
 import com.splicemachine.derby.impl.SpliceMethod;
 import com.splicemachine.derby.utils.SerializationUtils;
 import com.splicemachine.si.api.txn.TxnView;
@@ -153,7 +154,7 @@ public class MultiProbeDerbyScanInformation extends DerbyScanInformation{
 		else{
 			probeValue = null;
 			List<Pair<byte[],byte[]>> startStopKeys =
-				getStartStopKeys(txn, null, keyDecodingMap, probeValues);
+				getStartStopKeys(txn, ((BaseActivation)activation).getScanKeyPrefix(), keyDecodingMap, probeValues);
 
 
 			String javaCmd = System.getProperty("sun.java.command");

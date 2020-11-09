@@ -207,6 +207,7 @@ public abstract class BaseActivation implements CursorActivation, GeneratedByteC
     protected ExecRow scanStartOverride;
     protected ExecRow scanStopOverride;
     protected int[] scanKeys;
+    protected DataValueDescriptor scanKeyPrefix;
 
     protected List<Pair<ExecRow, ExecRow>> keyRows;
 
@@ -1697,6 +1698,14 @@ public abstract class BaseActivation implements CursorActivation, GeneratedByteC
 
     public ExecRow getScanStartOverride() {
         return scanStartOverride;
+    }
+
+    public void setScanKeyPrefix(DataValueDescriptor scanKeyPrefix) {
+        this.scanKeyPrefix = scanKeyPrefix;
+    }
+
+    public DataValueDescriptor getScanKeyPrefix() {
+        return scanKeyPrefix;
     }
 
     public void setKeyRows(List<Pair<ExecRow, ExecRow>> keyRows) {
