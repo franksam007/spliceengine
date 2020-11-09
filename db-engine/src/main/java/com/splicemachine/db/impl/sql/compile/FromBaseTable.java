@@ -71,6 +71,7 @@ import java.lang.reflect.Modifier;
 import java.util.*;
 
 import static com.splicemachine.db.impl.ast.RSUtils.isRSN;
+import static com.splicemachine.db.shared.common.reference.SQLState.LANG_INTERNAL_ERROR;
 
 // Temporary until user override for disposable stats has been removed.
 
@@ -1751,6 +1752,26 @@ public class FromBaseTable extends FromTable {
             }
         }
 
+        if (numUnusedLeadingIndexFields > 0) {
+            int firstIndexCol = getTrulyTheBestAccessPath().getConglomerateDescriptor().
+                                getIndexDescriptor().baseColumnPositions()[0];
+            if (referencedCols != null && !referencedCols.isSet(firstIndexCol-1))
+                referencedCols.set(firstIndexCol - 1);
+
+            boolean found = false;
+            for (int index = 0; index < resultColumns.size(); index++) {
+                ResultColumn column = resultColumns.elementAt(index);
+                if (column.getColumnPosition() == firstIndexCol) {
+                    column.setReferenced();
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                throw StandardException.newException(LANG_INTERNAL_ERROR,
+                    "IndexPrefixIteratorOperation chosen, but first index column not found in resultColumns.");
+        }
+
         /*
         ** Consider turning on bulkFetch if it is turned
         ** off.  Only turn it on if it is a not an updatable
@@ -2121,7 +2142,7 @@ public class FromBaseTable extends FromTable {
             multiProbing = false;
             mb.push(getTrulyTheBestAccessPath().getConglomerateDescriptor().getIndexDescriptor().baseColumnPositions()[0]);
             int nargs=getScanArguments(acb, mb);
-            nargs+=2;  // +1 for the source result set and +1 for baseColumnPositions.
+            nargs+=2;  // +1 for the source result set and +1 for first item in baseColumnPositions.
 
             // IndexPrefixIteratorOperation is a
             // high-level driver operation that finds existing
@@ -2178,16 +2199,16 @@ public class FromBaseTable extends FromTable {
                     getTrulyTheBestAccessPath().getConglomerateDescriptor()!=null);
 
         if (numUnusedLeadingIndexFields > 0) {
-            // Make sure the leading index column is marked as referenced.
-
-            int firstIndexCol = getTrulyTheBestAccessPath().getConglomerateDescriptor().
-                                getIndexDescriptor().baseColumnPositions()[0];
-            if (!referencedCols.isSet(firstIndexCol-1)) {
-                addFirstIndexColumnsToResultColumns(firstIndexCol);
-                referencedCols.set(firstIndexCol - 1);
-            }
-            acb.pushGetResultSetFactoryExpression(mb);
-        }
+//            // Make sure the leading index column is marked as referenced.
+//
+//            int firstIndexCol = getTrulyTheBestAccessPath().getConglomerateDescriptor().
+//                                getIndexDescriptor().baseColumnPositions()[0];
+//            if (!referencedCols.isSet(firstIndexCol-1)) {
+//                addFirstIndexColumnsToResultColumns(firstIndexCol);
+//                referencedCols.set(firstIndexCol - 1);
+//            }
+              acb.pushGetResultSetFactoryExpression(mb);
+        }   // msirek-temp
 
         /* Get the next ResultSet #, so that we can number this ResultSetNode, its
          * ResultColumnList and ResultSet.

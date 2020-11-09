@@ -390,7 +390,7 @@ public class TableScanOperation extends ScanOperation{
                 .map(new SetCurrentLocatedRowAndRowKeyFunction<>(operationContext));
     }
 
-    private boolean isReadOnly(TxnView txn) {
+    protected boolean isReadOnly(TxnView txn) {
         while(txn != Txn.ROOT_TRANSACTION) {
             if (txn.allowsWrites())
                 return false;

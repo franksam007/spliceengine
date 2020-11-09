@@ -15,46 +15,30 @@
 package com.splicemachine.derby.impl.sql.execute.operations;
 
 import com.splicemachine.db.iapi.error.StandardException;
-import com.splicemachine.db.iapi.reference.SQLState;
-import com.splicemachine.db.iapi.services.compiler.MethodBuilder;
-import com.splicemachine.db.iapi.services.context.ContextManager;
-import com.splicemachine.db.iapi.services.context.ContextService;
-import com.splicemachine.db.iapi.services.io.FormatableBitSet;
 import com.splicemachine.db.iapi.services.loader.GeneratedMethod;
 import com.splicemachine.db.iapi.sql.Activation;
 import com.splicemachine.db.iapi.sql.execute.ExecRow;
 import com.splicemachine.db.iapi.store.access.StaticCompiledOpenConglomInfo;
-import com.splicemachine.db.iapi.store.access.TransactionController;
-import com.splicemachine.db.iapi.store.access.conglomerate.TransactionManager;
-import com.splicemachine.db.iapi.store.raw.Transaction;
-import com.splicemachine.db.iapi.types.*;
-import com.splicemachine.db.impl.sql.compile.ActivationClassBuilder;
-import com.splicemachine.db.impl.sql.compile.FromTable;
 import com.splicemachine.db.impl.sql.execute.BaseActivation;
 import com.splicemachine.derby.iapi.sql.execute.SpliceOperation;
 import com.splicemachine.derby.iapi.sql.execute.SpliceOperationContext;
-import com.splicemachine.derby.impl.store.access.BaseSpliceTransaction;
+import com.splicemachine.derby.impl.sql.execute.operations.scanner.TableScannerBuilder;
 import com.splicemachine.derby.stream.control.ControlDataSetProcessor;
 import com.splicemachine.derby.stream.function.SetCurrentLocatedRowAndRowKeyFunction;
+import com.splicemachine.derby.stream.function.driver.IndexPrefixIteratorFunction;
+import com.splicemachine.derby.stream.function.merge.MergeOuterJoinFlatMapFunction;
 import com.splicemachine.derby.stream.iapi.DataSet;
 import com.splicemachine.derby.stream.iapi.DataSetProcessor;
-import com.splicemachine.pipeline.Exceptions;
-import com.splicemachine.primitives.Bytes;
-import com.splicemachine.si.api.txn.Txn;
+import com.splicemachine.derby.stream.iapi.ScanSetBuilder;
 import com.splicemachine.si.api.txn.TxnView;
-import com.splicemachine.si.constants.SIConstants;
-import com.splicemachine.si.impl.driver.SIDriver;
-import com.splicemachine.utils.ByteSlice;
+import com.splicemachine.storage.DataScan;
 import com.splicemachine.utils.SpliceLogUtils;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.sql.Timestamp;
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 
 /**
  *
@@ -64,9 +48,10 @@ import java.util.List;
 public class IndexPrefixIteratorOperation extends TableScanOperation{
     private static final long serialVersionUID=3l;
     private static Logger LOG=Logger.getLogger(IndexPrefixIteratorOperation.class);
-    private SpliceOperation sourceResultSet;
+    private SpliceOperation sourceResultSet = null;
     protected static final String opName=IndexPrefixIteratorOperation.class.getSimpleName().replaceAll("Operation","");
     private int firstIndexColumnNumber;
+    private TableScannerBuilder scanSetBuilder;
 
     @Override
     public String getName(){
@@ -204,15 +189,19 @@ public class IndexPrefixIteratorOperation extends TableScanOperation{
 
         oneRowScan = true;
 
-        DataSet<ExecRow> ds = getTableScannerBuilder(dsp);
+        DataSet<ExecRow> ds = getDriverDataSet(createTableScannerBuilder(dsp));
+        DataSet<ExecRow> finalDS = ds.mapPartitions(new IndexPrefixIteratorFunction(operationContext), true);
+
+//        return finalDS;
+
         if (dsp instanceof ControlDataSetProcessor) {
             Iterator<ExecRow> rowIterator = ds.toLocalIterator();
-            ExecRow row;
+            ExecRow row = null;
             while (rowIterator.hasNext()) {
-                row = rowIterator.next();
-                ((BaseActivation)sourceResultSet.getActivation()).setScanKeyPrefix(row.getColumn(firstIndexColumnNumber));
-                return sourceResultSet.getDataSet(dsp);
+                row = rowIterator.next().getClone();
             }
+            ((BaseActivation)sourceResultSet.getActivation()).setScanKeyPrefix(row.getColumn(firstIndexColumnNumber));
+            return sourceResultSet.getDataSet(dsp);
         }
         if (ds.isNativeSpark())
             dsp.incrementOpDepth();
@@ -237,18 +226,22 @@ public class IndexPrefixIteratorOperation extends TableScanOperation{
     /**
      * @return the Table Scan Builder for creating the actual data set from a scan.
      */
-    public DataSet<ExecRow> getTableScannerBuilder(DataSetProcessor dsp) throws StandardException{
+    public TableScannerBuilder createTableScannerBuilder(DataSetProcessor dsp) throws StandardException{
         TxnView txn = getCurrentTransaction();
         operationContext = dsp.createOperationContext(this);
 
         // we currently don't support external tables in Control, so this shouldn't happen
         assert storedAs == null || !( dsp.getType() == DataSetProcessor.Type.CONTROL && !storedAs.isEmpty() )
                 : "tried to access external table " + tableDisplayName + ":" + tableName + " over control/OLTP";
-        return dsp.<TableScanOperation,ExecRow>newScanSet(this,tableName)
+        DataScan dataScan = getNonSIScan();
+        dataScan.cacheRows(2).batchCells(-1);
+        //dataScan.setLimit(1);  // msirek-temp
+        scanSetBuilder = (TableScannerBuilder)
+        dsp.<TableScanOperation,ExecRow>newScanSet(this,tableName)
                 .tableDisplayName(tableDisplayName)
                 .activation(activation)
                 .transaction(txn)
-                .scan(getNonSIScan())
+                .scan(dataScan)
                 .template(currentTemplate)
                 .tableVersion(tableVersion)
                 .indexName(indexName)
@@ -268,17 +261,21 @@ public class IndexPrefixIteratorOperation extends TableScanOperation{
                 .location(location)
                 .partitionByColumns(getPartitionColumnMap())
                 .defaultRow(defaultRow,scanInformation.getDefaultValueMap())
-                .ignoreRecentTransactions(isReadOnly(txn))
-                .buildDataSet(this)
-                .map(new SetCurrentLocatedRowAndRowKeyFunction<>(operationContext));
+                .ignoreRecentTransactions(isReadOnly(txn));
+
+        return scanSetBuilder;
     }
 
-    private boolean isReadOnly(TxnView txn) {
-        while(txn != Txn.ROOT_TRANSACTION) {
-            if (txn.allowsWrites())
-                return false;
-            txn = txn.getParentTxnView();
-        }
-        return true;
+    @Override
+    public DataSet<ExecRow> getTableScannerBuilder(DataSetProcessor dsp) throws StandardException{
+        TableScannerBuilder tsb = createTableScannerBuilder(dsp);
+        return getDriverDataSet(tsb);
+    }
+
+    public DataSet<ExecRow> getDriverDataSet(TableScannerBuilder tableScannerBuilder)
+                                             throws StandardException {
+        return tableScannerBuilder
+                .buildDataSet(this)
+                .map(new SetCurrentLocatedRowAndRowKeyFunction<>(operationContext));
     }
 }
