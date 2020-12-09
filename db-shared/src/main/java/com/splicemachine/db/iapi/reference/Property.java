@@ -1459,9 +1459,16 @@ public interface Property {
             "splice.execution.allowOverflowSensitiveNativeSparkExpressions";
 
     /**
-     * Fractional seconds precision of current_timestamp
+     * Fractional seconds precision of current_timestamp.
      */
     String SPLICE_CURRENT_TIMESTAMP_PRECISION = "splice.function.currentTimestampPrecision";
+
+    /**
+     * Fractional seconds precision of timestamp.
+     */
+    String SPLICE_TIMESTAMP_PRECISION = "splice.function.timestampPrecision";
+
+    String SPLICE_TIMESTAMP_FORMAT = "splice.function.timestampFormat";
 
     String OUTERJOIN_FLATTENING_DISABLED = "derby.database.outerJoinFlatteningDisabled";
 
